@@ -45,6 +45,7 @@ def diffusercam_svd_xy(stack, rnk, si_mat):
     return weights, weights_interp, comps, u, s, vt
 
 def initialize_im(im_name, shape):
+    # print(im_name)
     return cv2.resize(cv2.imread(im_name)[:, :, ::-1], shape[::-1])
 
 
@@ -126,27 +127,33 @@ def forward_svd(H, weights, x):
         y_2 = y_2 + crop(np.real(ifft2(X*H[:,:,r])), SHAPE)
         plt.show()
     y = ifft2(Y)
-    return np.flipud(crop(np.real(y), SHAPE))
-
+    res =  np.flipud(crop(np.real(y), SHAPE))
+    return res #/np.max(res)
 
 def forward(H, x):
     #     print(fft2(pad_for_conv(x)))
     y = ifft2(fft2(pad_for_conv(x)) * H[:, :, -1])
-    return np.flipud(crop(np.real(y), SHAPE))
+    res = np.flipud(crop(np.real(y), SHAPE))
+    return res/np.max(res)
+
+def normalize(im):
+    for i in range(im.shape[2]):
+        im[:, :, i] = im[:, :, i]/np.max(im[:, :, i])
+    return im
 
 def forward_rgb(H, im):
     res = np.zeros(im.shape)
     for i in range(3):
-        res[:, :, i] = sxy.forward(H, im[:, :, i])
+        res[:, :, i] = forward(H, im[:, :, i])
     return res
 
 def mse(im1, im2):
     dims = im1.shape[2]
-    cum = 0
+    mses = []
     for i in range(dims):
         diff = (im1[:, :, i] - im2[:, :, i])
-        cum += diff*diff
-    return u/cumims
+        mses.append(np.mean(diff*diff))
+    return sum(mses)/len(mses)
 
 
 def crop(im, dim):
