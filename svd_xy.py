@@ -46,7 +46,7 @@ def diffusercam_svd_xy(stack, rnk, si_mat):
 
 def initialize_im(im_name, shape):
     # print(im_name)
-    return cv2.resize(cv2.imread(im_name)[:, :, ::-1], shape[::-1])
+    return cv2.resize(cv2.imread(im_name)[:, :, ::-1], shape[::-1]).astype('float32')
 
 
 def register_images(folder, center_name, shape=(270, 480), thresh=45):
@@ -152,7 +152,9 @@ def mse(im1, im2):
     mses = []
     for i in range(dims):
         diff = (im1[:, :, i] - im2[:, :, i])
-        mses.append(np.mean(diff*diff))
+        ch_mse = np.mean(diff*diff)
+        # print("che_mse {}".format(ch_mse))
+        mses.append(ch_mse)
     return sum(mses)/len(mses)
 
 

@@ -8,6 +8,7 @@ from numpy.fft import fft2, ifft2
 from imreg_dft.imreg import *
 from numpy.linalg import svd
 from scipy.ndimage import correlate, convolve
+import scipy.misc as scm
 from progressbar import ProgressBar
 
 
@@ -32,10 +33,15 @@ def main(args):
         im = initialize_im(name, shape)
         sim = forward_rgb(H, im)
         pbar.update(idx/len(file_names)*100)
-        cv2.imwrite(args.save_folder + file_name, sim)
+        scm.imsave(args.save_folder + file_name, sim)
+        plt.imshow(sim)
+        plt.show()
         if args.compare:
             real = initialize_im(args.diffuser_folder + file_name, shape)
-            cum_mse += mse(sim, normalize(real))
+            curr_mse = mse(sim, normalize(real))
+            plt.imshow(normalize(real))
+            plt.show()
+            cum_mse += curr_mse
 
     if args.compare:
         print("Avg MSE: {}".format(cum_mse/(idx + 1)))
