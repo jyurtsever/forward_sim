@@ -34,13 +34,13 @@ def main(args):
         sim = forward_rgb(H, im)
         pbar.update(idx/len(file_names)*100)
         scm.imsave(args.save_folder + file_name, sim)
-        plt.imshow(sim)
-        plt.show()
+        # plt.imshow(sim)
+        # plt.show()
         if args.compare:
             real = initialize_im(args.diffuser_folder + file_name, shape)
             curr_mse = mse(sim, normalize(real))
-            plt.imshow(normalize(real))
-            plt.show()
+            # plt.imshow(normalize(real))
+            # plt.show()
             cum_mse += curr_mse
 
     if args.compare:
