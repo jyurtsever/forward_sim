@@ -3,6 +3,7 @@ import cv2
 import time
 import os
 import matplotlib.pyplot as plt
+import imageio
 from imreg_dft.imreg import *
 from scipy.sparse.linalg import svds
 from scipy import interpolate
@@ -47,6 +48,9 @@ def diffusercam_svd_xy(stack, rnk, si_mat):
 def initialize_im(im_name, shape):
     # print(im_name)
     return cv2.resize(cv2.imread(im_name)[:, :, ::-1], shape[::-1]).astype('float32')
+
+def imsave(im_name, im):
+    imageio.imsave(im_name, (im*255).astype('uint8'))
 
 
 def register_images(folder, center_name, shape=(270, 480), thresh=45):
