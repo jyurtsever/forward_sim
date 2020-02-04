@@ -3,6 +3,7 @@ import os
 import numpy as np
 import cv2
 import importlib
+import imageio
 from svd_xy import *
 from numpy.fft import fft2, ifft2
 from imreg_dft.imreg import *
@@ -20,11 +21,13 @@ def main(args):
     stack, si_mat = stacked
     weights, weights_interp, comps, u, s, vt = diffusercam_svd_xy(stack, 15, si_mat)
     shape = stack.shape[:2]
-    print(shape)
     H, b = make_H(u, shape)
     file_names_gt = os.listdir(args.gt_folder)
     file_names_diffuser = os.listdir(args.diffuser_folder)
-    file_names = list(set(file_names_gt) & set(file_names_diffuser))[:args.num_images]
+    file_names = list(set(file_names_gt) & set(file_names_diffuser))
+    if args.num_images:
+        file_names = file_names[:args.num_images]
+
     cum_mse = 0
     idx = 0
     pbar = ProgressBar().start()
@@ -33,7 +36,7 @@ def main(args):
         im = initialize_im(name, shape)
         sim = forward_rgb(H, im)
         pbar.update(idx/len(file_names)*100)
-        scm.imsave(args.save_folder + file_name, sim)
+        imsave(args.save_folder + file_name, sim)
         # plt.imshow(sim)
         # plt.show()
         if args.compare:
@@ -54,6 +57,6 @@ if __name__ == '__main__':
     parser.add_argument('--stack_file', type=str, default='stacked_psfs_2.npy')
     parser.add_argument('--diffuser_folder', type=str, default='../mirflickr25k_recon/recon_0_iter/')
     parser.add_argument('--save_folder', type=str, default='../simulation_results/forward_simple/')
-    parser.add_argument('num_images', type=int)
+    parser.add_argument('--num_images', type=int, default = None)
     args = parser.parse_args()
     main(args)
