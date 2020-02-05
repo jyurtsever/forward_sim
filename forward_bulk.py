@@ -12,7 +12,7 @@ from scipy.ndimage import correlate, convolve
 from multiprocessing import Pool
 import scipy.misc as scm
 from progressbar import ProgressBar
-
+from tqdm import tqdm
 
 
 def main(args):
@@ -25,34 +25,38 @@ def main(args):
 
     # file_names_gt = os.listdir(args.gt_folder)
     # file_names_diffuser = os.listdir(args.diffuser_folder)
-    for path, subdirs, files in os.walk(args):
+    for path, subdirs, files in os.walk(args.root):
         sub_folder = os.path.basename(path)
-        if os.path.isdir(args.save_dir + sub_folder):
-            os.mkdir(args.save_dir + sub_folder)
+        print(sub_folder)
+        if not sub_folder:
+            continue
+
+        if not os.path.isdir(args.save_folder + sub_folder):
+            os.mkdir(args.save_folder + sub_folder)
 
         gVars['sub_folder'] = sub_folder
         gVars['file_names'] = files
         gVars['num_files'] = len(files)
 
-        gVars['idx'] = 0
-
         if args.num_images:
             gVars['file_names'] = gVars['file_names'][:args.num_images]
 
-        gVars['pbar'] = ProgressBar().start()
-        print(len(gVars['file_names']))
+        print('\n')
+        gVars['pbar'] = tqdm(total=len(files)) 
 
-        with Pool(processes=args.multiprocessing_workers) as p:
-            p.map(run_forward, gVars['file_names'])
-
-
-
-
+        #with Pool(processes=args.multiprocessing_workers) as p:
+        #    p.imap_unordered(run_forward, gVars['file_names'])
+        
+        p = Pool(processes=args.multiprocessing_workers)
+        for _ in p.imap_unordered(run_forward, gVars['file_names']):
+            gVars['pbar'].update(1)
+        #_ = os.system('clear')
+        print('\n')
 def run_forward(file_name):
-    name = args.gt_folder + gVars['sub_folder'] + '/' + file_name
+    name = args.root + gVars['sub_folder'] + '/' + file_name
     im = initialize_im(name, gVars['shape'])
-    sim = forward_rgb(gVars.H, im)
-    gVars['pbar'].update(gVars['idx']/ len(gVars['num_files']) * 100)
+    sim = forward_rgb(gVars['H'], im)
+    #gVars['pbar'].update(1)
     imsave(args.save_folder + gVars['sub_folder'] + '/' + file_name, sim)
 
 if __name__ == '__main__':
@@ -66,6 +70,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     gVars = {}
-    main(args)
     main(args)
 
