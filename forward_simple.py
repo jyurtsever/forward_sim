@@ -22,11 +22,9 @@ def main(args):
 
     gVars['shape'] = stack.shape[:2]
     gVars['H'], b = make_H(u, gVars['shape'])
-
     file_names_gt = os.listdir(args.gt_folder)
     file_names_diffuser = os.listdir(args.diffuser_folder)
     print(file_names_gt)
-        
     if args.compare:
         print("yoo")
         gVars['file_names'] = list(set(file_names_gt) & set(file_names_diffuser))
