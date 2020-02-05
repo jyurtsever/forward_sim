@@ -32,7 +32,7 @@ def main(args):
 
         gVars['sub_folder'] = sub_folder
         gVars['file_names'] = files
-        gVars['num_files'] = len(gVars['file_names'])
+        gVars['num_files'] = len(files)
 
         gVars['idx'] = 0
 
