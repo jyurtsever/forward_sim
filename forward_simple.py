@@ -20,12 +20,19 @@ def main(args):
     stack, si_mat = stacked
     weights, weights_interp, comps, u, s, vt = diffusercam_svd_xy(stack, 15, si_mat)
 
-    gVars.shape = stack.shape[:2]
-    gVars.H, b = make_H(u, gVars.shape)
+    gVars['shape'] = stack.shape[:2]
+    gVars['H'], b = make_H(u, gVars['shape'])
 
     file_names_gt = os.listdir(args.gt_folder)
     file_names_diffuser = os.listdir(args.diffuser_folder)
-    gVars['file_names'] = list(set(file_names_gt) & set(file_names_diffuser))
+    print(file_names_gt)
+        
+    if args.compare:
+        print("yoo")
+        gVars['file_names'] = list(set(file_names_gt) & set(file_names_diffuser))
+    else:
+        gVars['file_names'] = file_names_gt
+
     gVars['num_files'] = len(gVars['file_names'])
 
     gVars['idx'], gVars['cum_mse'] = 0, 0
@@ -34,6 +41,8 @@ def main(args):
         gVars['file_names'] = gVars['file_names'][:args.num_images]
 
     gVars['pbar'] = ProgressBar().start()
+    print(len(gVars['file_names']))
+
     with Pool(processes=args.multiprocessing_workers) as p:
         p.map(run_forward, gVars['file_names'])
     # for idx, file_name in enumerate(file_names):
@@ -74,7 +83,7 @@ def run_forward(file_name):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='runs forward model on the first n images in a folder')
     parser.add_argument('-gt_folder', type=str, default='../mirflickr25k/gt_images_2_14_auto/')
-    parser.add_argument('-compare', type=bool, default=True)
+    parser.add_argument('-compare', type=bool, default=False)
     parser.add_argument('-stack_file', type=str, default='stacked_psfs_2.npy')
     parser.add_argument('-diffuser_folder', type=str, default='../mirflickr25k_recon/recon_0_iter/')
     parser.add_argument('-save_folder', type=str, default='../simulation_results/forward_simple/')
