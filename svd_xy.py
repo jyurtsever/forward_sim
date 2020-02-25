@@ -128,16 +128,16 @@ def forward_svd(H, weights, x):
     for r in range(0,H.shape[-1]):
         X = fft2(pad_for_conv(weights[:,:,r]*x))
         Y = Y + X*H[:,:,r]
-        y_2 = y_2 + crop(np.real(ifft2(X*H[:,:,r])), SHAPE)
+        y_2 = y_2 + crop(np.real(ifft2(X*H[:,:,r])), x.shape)
         plt.show()
     y = ifft2(Y)
-    res =  np.flipud(crop(np.real(y), SHAPE))
+    res =  np.flipud(crop(np.real(y),x.shape)) 
     return res #/np.max(res)
 
 def forward(H, x):
     #     print(fft2(pad_for_conv(x)))
     y = ifft2(fft2(pad_for_conv(x)) * H[:, :, -1])
-    res = np.flipud(crop(np.real(y), SHAPE))
+    res = np.flipud(crop(np.real(y), x.shape))
     return res/np.max(res)
 
 def normalize(im):

@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import importlib
 import imageio
+import svd_xy
 from svd_xy import *
 from numpy.fft import fft2, ifft2
 from imreg_dft.imreg import *
@@ -14,7 +15,6 @@ import scipy.misc as scm
 from progressbar import ProgressBar
 from tqdm import tqdm
 
-
 def main(args):
     stacked = np.load(args.stack_file, allow_pickle=True)
     stack, si_mat = stacked
@@ -22,43 +22,64 @@ def main(args):
 
     gVars['shape'] = stack.shape[:2]
     gVars['H'], b = make_H(u, gVars['shape'])
+    if os.path.isfile('./finished.npy'):
+        finished_folders = list(np.load('./finished.npy'))
+    else:
+        finished_folders = []
 
     # file_names_gt = os.listdir(args.gt_folder)
     # file_names_diffuser = os.listdir(args.diffuser_folder)
     for path, subdirs, files in os.walk(args.root):
         sub_folder = os.path.basename(path)
         print(sub_folder)
+        if sub_folder in finished_folders:
+            continue
+
         if not sub_folder:
             continue
+    
 
         if not os.path.isdir(args.save_folder + sub_folder):
             os.mkdir(args.save_folder + sub_folder)
 
+        
         gVars['sub_folder'] = sub_folder
         gVars['file_names'] = files
         gVars['num_files'] = len(files)
+        num_corrupted = 0
 
         if args.num_images:
             gVars['file_names'] = gVars['file_names'][:args.num_images]
 
-        print('\n')
         gVars['pbar'] = tqdm(total=len(files)) 
 
         #with Pool(processes=args.multiprocessing_workers) as p:
         #    p.imap_unordered(run_forward, gVars['file_names'])
         
         p = Pool(processes=args.multiprocessing_workers)
-        for _ in p.imap_unordered(run_forward, gVars['file_names']):
+        for res in p.imap_unordered(run_forward, gVars['file_names']):
             gVars['pbar'].update(1)
+            if not res:
+                num_corrupted += 1
         #_ = os.system('clear')
-        print('\n')
+        p.close()
+        finished_folders.append(sub_folder)
+        np.save('./finished.npy', finished_folders)
+
+    print(f'{num_corrupted} total files corrupted')
+
 def run_forward(file_name):
     name = args.root + gVars['sub_folder'] + '/' + file_name
-    im = initialize_im(name, gVars['shape'])
-    sim = forward_rgb(gVars['H'], im)
+    try:
+        im = initialize_im(name, gVars['shape'])
+        sim = forward_rgb(gVars['H'], im)
     #gVars['pbar'].update(1)
-    imsave(args.save_folder + gVars['sub_folder'] + '/' + file_name, sim)
+        imsave(args.save_folder + gVars['sub_folder'] + '/' + file_name, sim)
+        return True
 
+    except:
+        os.remove(name)
+        return False 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='runs forward model on the first n images in a folder')
     parser.add_argument('-root', type=str, default='../mirflickr25k/gt_images_2_14_auto/')
