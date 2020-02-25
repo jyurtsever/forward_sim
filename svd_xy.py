@@ -45,9 +45,34 @@ def diffusercam_svd_xy(stack, rnk, si_mat):
         weights_interp[:, :, r] = np.rot90(interpolant_r(Xq, Yq), 2)
     return weights, weights_interp, comps, u, s, vt
 
+def rescale(img, width=None, height=None):
+    if not width and not height:
+        raise AssertionError
+    if width:
+        scale = width/img.shape[1]
+        height = int(img.shape[0] * scale)
+    else:
+        scale = height / img.shape[0]
+        width = int(img.shape[1] * scale)
+    dim = (width, height)
+    # resize image
+    resized = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
+    return resized
+
+
 def initialize_im(im_name, shape):
-    # print(im_name)
-    return cv2.resize(cv2.imread(im_name)[:, :, ::-1], shape[::-1]).astype('float32')
+    res = np.zeros(shape + (3,)).astype('uint8')
+    rh = res.shape[0]
+    rw = res.shape[1]
+    img = cv2.imread(im_name)[...,::-1]
+    if img.shape[0]/img.shape[1] > shape[0]/shape[1]: #img more vertical than psf
+        img = rescale(img, height=shape[0])
+        res[:, (rw - img.shape[1])//2:(rw + img.shape[1])//2, :] = img
+    else: #img more horizontal than psf
+        img = rescale(img, width=shape[1])
+        res[(rh - img.shape[0])//2:(rh + img.shape[0])//2, :, :] = img
+    return res.astype('float32')#cv2.resize(cv2.imread(im_name)[:, :, ::-1], shape[::-1]).astype('float32')
+
 
 def imsave(im_name, im):
     imageio.imsave(im_name, (im*255).astype('uint8'))

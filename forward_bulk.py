@@ -78,7 +78,7 @@ def run_forward(file_name):
         return True
 
     except:
-        os.remove(name)
+        # os.remove(name)
         return False 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='runs forward model on the first n images in a folder')
