@@ -47,6 +47,8 @@ def main(args):
         gVars['file_names'] = files
         gVars['num_files'] = len(files)
         num_corrupted = 0
+        print(sub_folder)
+        print(files)
 
         if args.num_images:
             gVars['file_names'] = gVars['file_names'][:args.num_images]
