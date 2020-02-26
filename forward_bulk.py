@@ -29,7 +29,7 @@ def main(args):
 
     # file_names_gt = os.listdir(args.gt_folder)
     # file_names_diffuser = os.listdir(args.diffuser_folder)
-    for path, subdirs, files in os.walk(args.root):
+    for path, subdirs, files in os.walk(args.root, topdown=True):
         sub_folder = os.path.basename(path)
         print(sub_folder)
         if sub_folder in finished_folders:
@@ -39,8 +39,11 @@ def main(args):
             continue
     
 
-        if not os.path.isdir(args.save_folder + sub_folder):
-            os.mkdir(args.save_folder + sub_folder)
+        if not os.path.isdir(os.path.join(args.save_folder, sub_folder)):
+            os.mkdir(os.path.join(args.save_folder, sub_folder))
+
+        if not files:
+            continue
 
         
         gVars['sub_folder'] = sub_folder
