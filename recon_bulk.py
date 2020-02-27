@@ -80,7 +80,7 @@ def get_recon(frame):
         inputs = perm.to(my_device)
         out = admm_converged2(inputs)
 
-    return preplot(out[0].cpu().detach().numpy())
+    return (preplot(out[0].cpu().detach().numpy())*255).astype('uint8')
 
 
 
