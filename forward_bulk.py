@@ -27,59 +27,55 @@ def main(args):
     else:
         finished_folders = []
 
-    # file_names_gt = os.listdir(args.gt_folder)
-    # file_names_diffuser = os.listdir(args.diffuser_folder)
     for path, subdirs, files in os.walk(args.root, topdown=True):
-        sub_folder = os.path.basename(path)
-        print(sub_folder)
-        if sub_folder in finished_folders:
+        
+        curr_save_folder = os.path.join(args.save_folder, os.path.relpath(path, args.root))
+        if curr_save_folder in finished_folders:
             continue
 
-        if not sub_folder:
+        if not curr_save_folder:
             continue
     
 
-        if not os.path.isdir(os.path.join(args.save_folder, sub_folder)):
-            os.mkdir(os.path.join(args.save_folder, sub_folder))
+        if not os.path.isdir(curr_save_folder):
+            os.makedirs(curr_save_folder, exist_ok=True)
 
         if not files:
             continue
 
         
-        gVars['sub_folder'] = sub_folder
+        gVars['curr_save_folder'] = curr_save_folder
         gVars['file_names'] = files
         gVars['num_files'] = len(files)
+        gVars['path'] = path
+
         num_corrupted = 0
-        print(sub_folder)
-        print(files)
+        print(curr_save_folder)
 
         if args.num_images:
             gVars['file_names'] = gVars['file_names'][:args.num_images]
 
         gVars['pbar'] = tqdm(total=len(files)) 
 
-        #with Pool(processes=args.multiprocessing_workers) as p:
-        #    p.imap_unordered(run_forward, gVars['file_names'])
         
         p = Pool(processes=args.multiprocessing_workers)
         for res in p.imap_unordered(run_forward, gVars['file_names']):
             gVars['pbar'].update(1)
             if not res:
                 num_corrupted += 1
-        #_ = os.system('clear')
         p.close()
-        finished_folders.append(sub_folder)
+        finished_folders.append(curr_save_folder)
         np.save('./finished.npy', finished_folders)
 
     print(f'{num_corrupted} total files corrupted')
 
 def run_forward(file_name):
-    name = args.root + gVars['sub_folder'] + '/' + file_name
+    name = os.path.join(gVars['path'], file_name)
     try:
         im = initialize_im(name, gVars['shape'])
         sim = forward_rgb(gVars['H'], im)
     #gVars['pbar'].update(1)
-        imsave(args.save_folder + gVars['sub_folder'] + '/' + file_name, sim)
+        imsave(os.path.join(gVars['curr_save_folder'], file_name), sim)
         return True
 
     except:
