@@ -118,6 +118,7 @@ if __name__ == '__main__':
     parser.add_argument('-save_folder', type=str, default='../simulation_results/forward_simple/')
     parser.add_argument('-num_images', type=int, default=None)
     parser.add_argument('-multiprocessing_workers', type=int, default=1)
+    parser.add_argument("-psf_file", type=str, default='../../recon_files/psf_white_LED_Nick.tiff')
     args = parser.parse_args()
 
     gVars = {}
