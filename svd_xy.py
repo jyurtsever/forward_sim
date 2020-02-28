@@ -163,7 +163,7 @@ def forward(H, x):
     #     print(fft2(pad_for_conv(x)))
     y = ifft2(fft2(pad_for_conv(x)) * H[:, :, -1])
     res = np.flipud(crop(np.real(y), x.shape))
-    return res/np.max(res)
+    return res
 
 def normalize(im):
     for i in range(im.shape[2]):
@@ -174,7 +174,7 @@ def forward_rgb(H, im):
     res = np.zeros(im.shape)
     for i in range(3):
         res[:, :, i] = forward(H, im[:, :, i])
-    return res
+    return res/np.max(res)
 
 def mse(im1, im2):
     dims = im1.shape[2]
