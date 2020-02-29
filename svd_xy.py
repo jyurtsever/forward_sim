@@ -71,7 +71,7 @@ def initialize_im(im_name, shape):
     else: #img more horizontal than psf
         img = rescale(img, width=shape[1])
         res[(rh - img.shape[0])//2:(rh + img.shape[0])//2, :, :] = img
-    return res.astype('float32')#cv2.resize(cv2.imread(im_name)[:, :, ::-1], shape[::-1]).astype('float32')
+    return (res/255).astype('float32')#cv2.resize(cv2.imread(im_name)[:, :, ::-1], shape[::-1]).astype('float32')
 
 
 def imsave(im_name, im):

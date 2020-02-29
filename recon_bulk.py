@@ -54,7 +54,7 @@ def main(args):
         gVars['num_files'] = len(files)
         gVars['path'] = path
 
-        num_corrupted = 0
+#        num_corrupted = 0
         print(curr_save_folder)
 
         if args.num_images:
@@ -62,16 +62,20 @@ def main(args):
 
         gVars['pbar'] = tqdm(total=len(files))
 
-        p = Pool(processes=args.multiprocessing_workers)
-        for res in p.imap_unordered(admm, gVars['file_names']):   #run_forward, gVars['file_names']):
+#        p = Pool(processes=args.multiprocessing_workers)
+#        for res in p.imap_unordered(admm, gVars['file_names']):   #run_forward, gVars['file_names']):
+#            gVars['pbar'].update(1)
+#            if not res:
+#                num_corrupted += 1
+#        p.close()
+        for f in gVars['file_names']:
+            admm(f)
             gVars['pbar'].update(1)
-            if not res:
-                num_corrupted += 1
-        p.close()
+
         finished_folders.append(curr_save_folder)
         np.save('./finished.npy', finished_folders)
 
-    print(f'{num_corrupted} total files corrupted')
+#    print(f'{num_corrupted} total files corrupted')
 
 def get_recon(frame):
     frame_float = (frame/np.max(frame)).astype('float32')
@@ -118,7 +122,7 @@ if __name__ == '__main__':
     parser.add_argument('-save_folder', type=str, default='../simulation_results/forward_simple/')
     parser.add_argument('-num_images', type=int, default=None)
     parser.add_argument('-multiprocessing_workers', type=int, default=1)
-    parser.add_argument("-psf_file", type=str, default='../../recon_files/psf_white_LED_Nick.tiff')
+    parser.add_argument("-psf_file", type=str, default='../recon_files/psf_white_LED_Nick.tiff')
     args = parser.parse_args()
 
     gVars = {}
