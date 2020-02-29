@@ -77,14 +77,14 @@ def get_recon(frame):
 
 def admm(file_name):
     name = os.path.join(gVars['path'], file_name)
-    try:
-        im = imread_to_normalized_float(name)
-        imsave_from_uint8(os.path.join(gVars['curr_save_folder'], file_name), get_recon(im))
-        return True
+    # try:
+    im = imread_to_normalized_float(name)
+    imsave_from_uint8(os.path.join(gVars['curr_save_folder'], file_name), get_recon(im))
+    return True
 
-    except:
-        # os.remove(name)
-        return False
+    # except:
+    #     # os.remove(name)
+    #     return False
 
 
 
