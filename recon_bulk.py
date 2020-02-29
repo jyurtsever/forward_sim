@@ -64,7 +64,7 @@ def main(args):
             gVars['pbar'].update(1)
 
         finished_folders.append(curr_save_folder)
-        np.save('./finished.npy', finished_folders)
+        np.save('./finished_recon.npy', finished_folders)
 
 def get_recon(frame):
     frame_float = frame.astype('float32')#(frame/np.max(frame)).astype('float32')
@@ -79,7 +79,7 @@ def admm(file_name):
     name = os.path.join(gVars['path'], file_name)
     try:
         im = imread_to_normalized_float(name)
-        imsave_from_normalized_float(os.path.join(gVars['curr_save_folder'], file_name), get_recon(im))
+        imsave_from_uint8(os.path.join(gVars['curr_save_folder'], file_name), get_recon(im))
         return True
 
     except:

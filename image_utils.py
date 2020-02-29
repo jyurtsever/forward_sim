@@ -38,7 +38,14 @@ def rescale(img, width=None, height=None):
     return resized
 
 
-"""Reads image from float values between 0 and 1 with specified suffix"""
+"""Saves unsigned int image from float values between 0 and 1 with specified suffix"""
 def imsave_from_normalized_float(im_name, im, suffix='.tiff'):
     save_name = os.path.splitext(im_name)[0] + suffix
     imageio.imsave(save_name, (im*255).astype('uint8'))
+
+
+
+"""Saves unsigned int image from unsigned int array"""
+def imsave_from_uint8(im_name, im, suffix='.tiff'):
+    save_name = os.path.splitext(im_name)[0] + suffix
+    imageio.imsave(save_name, im)
