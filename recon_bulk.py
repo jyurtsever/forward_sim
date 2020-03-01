@@ -55,7 +55,7 @@ def main(args):
         gVars['lock'] = Lock()
         p = Pool(processes=args.multiprocessing_workers)
         for res in p.imap_unordered(admm, gVars['file_names']):   #run_forward, gVars['file_names']):
-           gVars['pbar'].update(1)
+            gVars['pbar'].update(1)
         p.close()
 #         for f in gVars['file_names']:
 #             admm(f)
