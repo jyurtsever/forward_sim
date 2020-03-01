@@ -124,7 +124,7 @@ if __name__ == '__main__':
     
     gVars['pbar'] = tqdm(total=len(files))
 
-    multi_args = list(zip(files, [curr_save_folder]*len(files), [path]*len(files), [admm_converged2]*len(files)))
+    multi_args = list(zip(all_files, all_save_folders, all_paths, all_models))
     #print(multi_args)
 
     p = tm.Pool(processes=args.multiprocessing_workers)
