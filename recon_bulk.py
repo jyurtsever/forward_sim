@@ -11,7 +11,7 @@ import torch
 import admm_model as admm_model_plain
 
 from utils import load_psf_image, preplot
-from multiprocessing import Pool
+from multiprocessing import Pool, Lock
 from image_utils import *
 from tqdm import tqdm
 
@@ -52,16 +52,14 @@ def main(args):
             gVars['file_names'] = gVars['file_names'][:args.num_images]
 
         gVars['pbar'] = tqdm(total=len(files))
-
-#        p = Pool(processes=args.multiprocessing_workers)
-#        for res in p.imap_unordered(admm, gVars['file_names']):   #run_forward, gVars['file_names']):
-#            gVars['pbar'].update(1)
-#            if not res:
-#                num_corrupted += 1
-#        p.close()
-        for f in gVars['file_names']:
-            admm(f)
-            gVars['pbar'].update(1)
+        gVars['lock'] = Lock()
+        p = Pool(processes=args.multiprocessing_workers)
+        for res in p.imap_unordered(admm, gVars['file_names']):   #run_forward, gVars['file_names']):
+           gVars['pbar'].update(1)
+        p.close()
+#         for f in gVars['file_names']:
+#             admm(f)
+#             gVars['pbar'].update(1)
 
         finished_folders.append(curr_save_folder)
         np.save('./finished_recon.npy', finished_folders)
@@ -70,10 +68,10 @@ def get_recon(frame):
     frame_float = frame.astype('float32')#(frame/np.max(frame)).astype('float32')
     perm = torch.tensor(frame_float.transpose((2, 0, 1))).unsqueeze(0)
     with torch.no_grad():
-        inputs = perm.to(my_device)
-        out = admm_converged2(inputs)
-    return np.flipud((preplot(out[0].cpu().detach().numpy())*255).astype('uint8'))[...,::-1]
-
+        with gVars['lock']:
+            inputs = perm.to(my_device)
+            out = admm_converged2(inputs)[0].cpu().detach()
+    return np.flipud((preplot(out.numpy())*255).astype('uint8'))[...,::-1]
 
 def admm(file_name):
     name = os.path.join(gVars['path'], file_name)
