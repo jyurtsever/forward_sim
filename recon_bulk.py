@@ -91,6 +91,10 @@ if __name__ == '__main__':
     else:
         finished_folders = []
 
+    all_files = []
+    all_save_folders = []
+    all_paths = []
+    all_models = []
     for path, subdirs, files in os.walk(args.root, topdown=True):
 
         curr_save_folder = os.path.join(args.save_folder, os.path.relpath(path, args.root))
@@ -110,23 +114,22 @@ if __name__ == '__main__':
         gVars['file_names'] = files
         gVars['num_files'] = len(files)
         gVars['path'] = path
-
-#        num_corrupted = 0
-        print(curr_save_folder)
-
-        if args.num_images:
-            gVars['file_names'] = gVars['file_names'][:args.num_images]
-
-        gVars['pbar'] = tqdm(total=len(files))
-
-        multi_args = list(zip(files, [curr_save_folder]*len(files), [path]*len(files), [admm_converged2]*len(files)))
-        #print(multi_args)
-
-        p = tm.Pool(processes=args.multiprocessing_workers)
-        for res in p.imap_unordered(admm, multi_args):   #run_forward, gVars['file_names']):
-            gVars['pbar'].update(1)
-        p.close()
+        all_files.extend(files)
+        all_save_folders.extend([curr_save_folder]*len(files))
+        all_paths.extend([path]*len(files))
+        all_models.extent([admm_converged2]*len(files))
 
 #        finished_folders.append(curr_save_folder)
-        gVars['pbar'].close()
         #np.save('./finished_recon.npy', finished_folders)
+    
+    gVars['pbar'] = tqdm(total=len(files))
+
+    multi_args = list(zip(files, [curr_save_folder]*len(files), [path]*len(files), [admm_converged2]*len(files)))
+    #print(multi_args)
+
+    p = tm.Pool(processes=args.multiprocessing_workers)
+    for res in p.imap_unordered(admm, multi_args):   #run_forward, gVars['file_names']):
+        gVars['pbar'].update(1)
+    p.close()
+
+    gVars['pbar'].close()
