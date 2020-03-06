@@ -7,19 +7,26 @@ import numpy as np
 import cv2
 import importlib
 import skimage
+import skimage.transform
 import torch
-import admm_model as admm_model_plain
+import models.admm_model as admm_model_plain
 
 from utils import load_psf_image, preplot
 from torch.multiprocessing import Pool
 from image_utils import *
 from tqdm import tqdm
+from multiprocessing import set_start_method
 
+try:
+    set_start_method('spawn')
+except RuntimeError:
+    pass
 
 
 
 
 def get_recon(frame, model):
+    my_device = 'cuda:0'
     frame_float = frame.astype('float32')#(frame/np.max(frame)).astype('float32')
     perm = torch.tensor(frame_float.transpose((2, 0, 1))).unsqueeze(0)
     with torch.no_grad():
@@ -53,7 +60,7 @@ if __name__ == '__main__':
     parser.add_argument('-save_folder', type=str, default='../simulation_results/forward_simple/')
     parser.add_argument('-num_images', type=int, default=None)
     parser.add_argument('-multiprocessing_workers', type=int, default=1)
-    parser.add_argument('-num_iterations', type=int, default=100)
+    parser.add_argument('-num_iterations', type=int, default=5)
     parser.add_argument("-psf_file", type=str, default='../recon_files/psf_white_LED_Nick.tiff')
     args = parser.parse_args()
 
@@ -87,26 +94,30 @@ if __name__ == '__main__':
     model.share_memory()
 
     print("Recon Model Created")
+    print("Preprocessing")
+    pre_pbar = tqdm(total=1000)
     all_files, all_save_folders, all_paths, model_repeated = [], [], [], []
     for path, subdirs, files in os.walk(args.root, topdown=True):
 
         curr_save_folder = os.path.join(args.save_folder, os.path.relpath(path, args.root))
 
-        if not curr_save_folder:
-            continue
+#        if not curr_save_folder:
+#            continue
 
         if not os.path.isdir(curr_save_folder):
             os.makedirs(curr_save_folder, exist_ok=True)
-
+        
+#       print(len(files), curr_save_folder)
         if not files:
+            print(len(files), curr_save_folder)
             continue
-
         all_save_folders.extend([curr_save_folder]*len(files))
         all_files.extend(files)
         all_paths.extend([path]*len(files))
         model_repeated.extend([model]*len(files))
-
-
+        pre_pbar.update(1)
+    pre_pbar.close()
+    print("Preprocessing Done")
     multiproc_args = list(zip(all_files, all_save_folders, all_paths, model_repeated))
     pbar = tqdm(total=len(all_files))
     p = Pool(processes=args.multiprocessing_workers)
