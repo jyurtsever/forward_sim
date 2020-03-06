@@ -11,73 +11,32 @@ import torch
 import admm_model as admm_model_plain
 
 from utils import load_psf_image, preplot
-from multiprocessing import Pool, Lock
+from torch.multiprocessing import Pool
 from image_utils import *
 from tqdm import tqdm
 
 
 
-# lock = threading.RLock()
 
-def main(args):
-    if os.path.isfile('./finished_recon.npy'):
-        finished_folders = list(np.load('./finished_recon.npy'))
-    else:
-        finished_folders = []
 
-    for path, subdirs, files in os.walk(args.root, topdown=True):
-
-        curr_save_folder = os.path.join(args.save_folder, os.path.relpath(path, args.root))
-        if curr_save_folder in finished_folders:
-            continue
-
-        if not curr_save_folder:
-            continue
-
-        if not os.path.isdir(curr_save_folder):
-            os.makedirs(curr_save_folder, exist_ok=True)
-
-        if not files:
-            continue
-
-        gVars['curr_save_folder'] = curr_save_folder
-        gVars['file_names'] = files
-        gVars['num_files'] = len(files)
-        gVars['path'] = path
-
-#        num_corrupted = 0
-        print(curr_save_folder)
-
-        if args.num_images:
-            gVars['file_names'] = gVars['file_names'][:args.num_images]
-
-        gVars['pbar'] = tqdm(total=len(files))
-        gVars['lock'] = Lock()
-        p = Pool(processes=args.multiprocessing_workers)
-        for res in p.imap_unordered(admm, gVars['file_names']):   #run_forward, gVars['file_names']):
-            gVars['pbar'].update(1)
-        p.close()
-#         for f in gVars['file_names']:
-#             admm(f)
-#             gVars['pbar'].update(1)
-
-        finished_folders.append(curr_save_folder)
-        np.save('./finished_recon.npy', finished_folders)
-
-def get_recon(frame):
+def get_recon(frame, model):
     frame_float = frame.astype('float32')#(frame/np.max(frame)).astype('float32')
     perm = torch.tensor(frame_float.transpose((2, 0, 1))).unsqueeze(0)
     with torch.no_grad():
-        with gVars['lock']:
-            inputs = perm.to(my_device)
-            out = admm_converged2(inputs)[0].cpu().detach()
+        inputs = perm.to(my_device)
+        out = model(inputs)[0].cpu().detach()
     return np.flipud((preplot(out.numpy())*255).astype('uint8'))[...,::-1]
 
-def admm(file_name):
-    name = os.path.join(gVars['path'], file_name)
+
+def admm(multi_args):
+    file_name, curr_save_folder, path, model = multi_args
+    name = os.path.join(path, file_name)
+    save_path = os.path.join(curr_save_folder, file_name)
+    if os.path.isfile(save_path):
+        return False
     # try:
     im = imread_to_normalized_float(name)
-    imsave_from_uint8(os.path.join(gVars['curr_save_folder'], file_name), get_recon(im))
+    imsave_from_uint8(save_path, get_recon(im, model))
     return True
 
     # except:
@@ -98,7 +57,6 @@ if __name__ == '__main__':
     parser.add_argument("-psf_file", type=str, default='../recon_files/psf_white_LED_Nick.tiff')
     args = parser.parse_args()
 
-    gVars = {}
     print("Creating Recon Model")
     my_device = 'cuda:0'
 
@@ -125,5 +83,34 @@ if __name__ == '__main__':
 
     admm_converged2.tau.data = admm_converged2.tau.data * 1000
     admm_converged2.to(my_device)
+    model = admm_converged2
+    model.share_memory()
+
     print("Recon Model Created")
-    main(args)
+    all_files, all_save_folders, all_paths, model_repeated = [], [], [], []
+    for path, subdirs, files in os.walk(args.root, topdown=True):
+
+        curr_save_folder = os.path.join(args.save_folder, os.path.relpath(path, args.root))
+
+        if not curr_save_folder:
+            continue
+
+        if not os.path.isdir(curr_save_folder):
+            os.makedirs(curr_save_folder, exist_ok=True)
+
+        if not files:
+            continue
+
+        all_save_folders.extend([curr_save_folder]*len(files))
+        all_files.extend(files)
+        all_paths.extend([path]*len(files))
+        model_repeated.extend([model]*len(files))
+
+
+    multiproc_args = list(zip(all_files, all_save_folders, all_paths, model_repeated))
+    pbar = tqdm(total=len(all_files))
+    p = Pool(processes=args.multiprocessing_workers)
+    for res in p.imap_unordered(admm, multiproc_args):  # run_forward, gVars['file_names']):
+        pbar.update(1)
+    p.close()
+    pbar.close()
