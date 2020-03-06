@@ -111,10 +111,11 @@ if __name__ == '__main__':
         if not files:
             print(len(files), curr_save_folder)
             continue
-        all_save_folders.extend([curr_save_folder]*len(files))
-        all_files.extend(files)
-        all_paths.extend([path]*len(files))
-        model_repeated.extend([model]*len(files))
+	new_files = [f for f in files if not os.path.isfile(os.path.join(curr_save_folder, f))]
+        all_save_folders.extend([curr_save_folder]*len(new_files))
+        all_files.extend(new_files)
+        all_paths.extend([path]*len(new_files))
+        model_repeated.extend([model]*len(new_files))
         pre_pbar.update(1)
     pre_pbar.close()
     print("Preprocessing Done")
