@@ -43,6 +43,8 @@ def admm(args):
     if os.path.isfile(save_name):
         return False
     im = imread_to_normalized_float(name)
+    if args.flip_diffuser_im:
+        im = np.flipud(im)
     imsave_from_uint8(save_name, get_recon(im, model))
     return True
 
@@ -55,9 +57,12 @@ if __name__ == '__main__':
     parser.add_argument('-num_images', type=int, default=None)
     parser.add_argument('-multiprocessing_workers', type=int, default=1)
     parser.add_argument('-num_iterations', type=int, default=10)
+    parser.add_argument('-flip_diffuser_im', dest='flip_diffuser_im', action='store_true')
     parser.add_argument("-psf_file", type=str, default='../recon_files/psf_white_LED_Nick.tiff')
     args = parser.parse_args()
 
+    if args.flip_diffuser_im:
+        print("Note that you have specified to flip all diffuser images")
     print("Creating Recon Model")
     my_device = 'cuda:0'
 
@@ -81,6 +86,13 @@ if __name__ == '__main__':
 
     admm_converged2 = admm_model_plain.ADMM_Net(batch_size=1, h=h, iterations=args.num_iterations,
                                                 learning_options=learning_options_none, cuda_device=my_device)
+
+    le_admm = torch.load('../../saved_models/model_le_admm.pt', map_location=my_device)
+    le_admm.cuda_device = my_device
+    for pn, pd in le_admm.named_parameters():
+        for pnn, pdd in admm_converged2.named_parameters():
+            if pnn == pn:
+                pdd.data = pd.data
 
     admm_converged2.tau.data = admm_converged2.tau.data * 1000
     admm_converged2.to(my_device)
