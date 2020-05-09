@@ -43,6 +43,10 @@ def admm(multi_args):
         return False
     # try:
     im = imread_to_normalized_float(name)
+
+    if args.flip_diffuser_im:
+        im = np.flipud(im)
+
     imsave_from_uint8(save_path, get_recon(im, model))
     return True
 
@@ -62,6 +66,7 @@ if __name__ == '__main__':
     parser.add_argument('-multiprocessing_workers', type=int, default=1)
     parser.add_argument('-num_iterations', type=int, default=5)
     parser.add_argument("-psf_file", type=str, default='../recon_files/psf_white_LED_Nick.tiff')
+    parser.add_argument('-flip_diffuser_im', des='flip_diffuser_im', action='store_true')
     args = parser.parse_args()
 
     print("Creating Recon Model")
@@ -88,6 +93,13 @@ if __name__ == '__main__':
     admm_converged2 = admm_model_plain.ADMM_Net(batch_size=1, h=h, iterations=args.num_iterations,
                                                 learning_options=learning_options_none, cuda_device=my_device)
 
+
+    le_admm = torch.load('../../saved_models/model_le_admm.pt', map_location=my_device)
+    le_admm.cuda_device = my_device
+    for pn, pd in le_admm.named_parameters():
+        for pnn, pdd in admm_converged2.named_parameters():
+            if pnn == pn:
+                pdd.data = pd.data
     admm_converged2.tau.data = admm_converged2.tau.data * 1000
     admm_converged2.to(my_device)
     model = admm_converged2
@@ -111,7 +123,7 @@ if __name__ == '__main__':
         if not files:
             print(len(files), curr_save_folder)
             continue
-	new_files = [f for f in files if not os.path.isfile(os.path.join(curr_save_folder, f))]
+	    new_files = [f for f in files if not os.path.isfile(os.path.join(curr_save_folder, f))]
         all_save_folders.extend([curr_save_folder]*len(new_files))
         all_files.extend(new_files)
         all_paths.extend([path]*len(new_files))
