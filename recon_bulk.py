@@ -39,10 +39,11 @@ def get_recon(frame, model):
 def admm(args):
     file_name, curr_save_folder, path, model = args
     name = os.path.join(path, file_name)
-    # try:
-    #print(name)
+    save_name = os.path.join(curr_save_folder, file_name)
+    if os.path.isfile(save_name):
+        return False
     im = imread_to_normalized_float(name)
-    imsave_from_uint8(os.path.join(curr_save_folder, file_name), get_recon(im, model))
+    imsave_from_uint8(save_name, get_recon(im, model))
     return True
 
 if __name__ == '__main__':
@@ -85,7 +86,6 @@ if __name__ == '__main__':
     admm_converged2.to(my_device)
     admm_converged2.share_memory()
     print("Recon Model Created")
-    
     if os.path.isfile('./finished_recon.npy'):
         finished_folders = list(np.load('./finished_recon.npy'))
     else:
@@ -110,26 +110,24 @@ if __name__ == '__main__':
         if not files:
             continue
 
-        gVars['curr_save_folder'] = curr_save_folder
-        gVars['file_names'] = files
-        gVars['num_files'] = len(files)
-        gVars['path'] = path
-        all_files.extend(files)
-        all_save_folders.extend([curr_save_folder]*len(files))
-        all_paths.extend([path]*len(files))
-        all_models.extent([admm_converged2]*len(files))
+        todo = [f for f in files if not os.path.isfile(os.path.join(curr_save_folder, f))]
+        if todo:
+            all_files.extend(todo)
+            all_save_folders.extend([curr_save_folder] * len(todo))
+            all_paths.extend([path] * len(todo))
+            all_models.extend([admm_converged2] * len(todo))
 
-#        finished_folders.append(curr_save_folder)
-        #np.save('./finished_recon.npy', finished_folders)
-    
-    gVars['pbar'] = tqdm(total=len(files))
+        #        finished_folders.append(curr_save_folder)
+        # np.save('./finished_recon.npy', finished_folders)
 
-    multi_args = list(zip(all_files, all_save_folders, all_paths, all_models))
-    #print(multi_args)
+        gVars['pbar'] = tqdm(total=len(all_files))
 
-    p = tm.Pool(processes=args.multiprocessing_workers)
-    for res in p.imap_unordered(admm, multi_args):   #run_forward, gVars['file_names']):
-        gVars['pbar'].update(1)
-    p.close()
+        multi_args = list(zip(all_files, all_save_folders, all_paths, all_models))
+        # print(multi_args)
 
-    gVars['pbar'].close()
+        p = tm.Pool(processes=args.multiprocessing_workers)
+        for res in p.imap_unordered(admm, multi_args):  # run_forward, gVars['file_names']):
+            gVars['pbar'].update(1)
+        p.close()
+
+        gVars['pbar'].close()

@@ -53,6 +53,7 @@ def main(args):
             if not res:
                 num_corrupted += 1
         p.close()
+        gVars['pbar'].close()
         finished_folders.append(curr_save_folder)
         np.save('./finished.npy', finished_folders)
 
