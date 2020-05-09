@@ -7,22 +7,23 @@ import numpy as np
 import cv2
 import importlib
 import skimage
-import skimage.transform
 import torch
-import models.admm_model as admm_model_plain
-
+import admm_model as admm_model_plain
+import torch.multiprocessing as tm
 from utils import load_psf_image, preplot
-from torch.multiprocessing import Pool
+from torch.multiprocessing import Pool, Process, set_start_method
 from image_utils import *
 from tqdm import tqdm
-from multiprocessing import set_start_method
 
-try:
-    set_start_method('spawn')
-except RuntimeError:
-    pass
+torch.multiprocessing.set_start_method('spawn', force=True)
+
+gVars = {}
+# lock = threading.RLock()
 
 
+    # except:
+    #     # os.remove(name)
+    #     return false
 
 
 def get_recon(frame, model):
@@ -31,30 +32,19 @@ def get_recon(frame, model):
     perm = torch.tensor(frame_float.transpose((2, 0, 1))).unsqueeze(0)
     with torch.no_grad():
         inputs = perm.to(my_device)
-        out = model(inputs)[0].cpu().detach()
-    return np.flipud((preplot(out.numpy())*255).astype('uint8'))[...,::-1]
+        out = model(inputs)
+    return np.flipud((preplot(out[0].cpu().detach().numpy())*255).astype('uint8'))[...,::-1]
 
 
-def admm(multi_args):
-    file_name, curr_save_folder, path, model = multi_args
+def admm(args):
+    file_name, curr_save_folder, path, model = args
     name = os.path.join(path, file_name)
-    save_path = os.path.join(curr_save_folder, file_name)
-    if os.path.isfile(save_path):
+    save_name = os.path.join(curr_save_folder, file_name)
+    if os.path.isfile(save_name):
         return False
-    # try:
     im = imread_to_normalized_float(name)
-
-    if args.flip_diffuser_im:
-        im = np.flipud(im)
-
-    imsave_from_uint8(save_path, get_recon(im, model))
+    imsave_from_uint8(save_name, get_recon(im, model))
     return True
-
-    # except:
-    #     # os.remove(name)
-    #     return False
-
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='runs forward model on the first n images in a folder')
@@ -64,9 +54,8 @@ if __name__ == '__main__':
     parser.add_argument('-save_folder', type=str, default='../simulation_results/forward_simple/')
     parser.add_argument('-num_images', type=int, default=None)
     parser.add_argument('-multiprocessing_workers', type=int, default=1)
-    parser.add_argument('-num_iterations', type=int, default=5)
+    parser.add_argument('-num_iterations', type=int, default=10)
     parser.add_argument("-psf_file", type=str, default='../recon_files/psf_white_LED_Nick.tiff')
-    parser.add_argument('-flip_diffuser_im', des='flip_diffuser_im', action='store_true')
     args = parser.parse_args()
 
     print("Creating Recon Model")
@@ -93,48 +82,53 @@ if __name__ == '__main__':
     admm_converged2 = admm_model_plain.ADMM_Net(batch_size=1, h=h, iterations=args.num_iterations,
                                                 learning_options=learning_options_none, cuda_device=my_device)
 
-
-    le_admm = torch.load('../../saved_models/model_le_admm.pt', map_location=my_device)
-    le_admm.cuda_device = my_device
-    for pn, pd in le_admm.named_parameters():
-        for pnn, pdd in admm_converged2.named_parameters():
-            if pnn == pn:
-                pdd.data = pd.data
     admm_converged2.tau.data = admm_converged2.tau.data * 1000
     admm_converged2.to(my_device)
-    model = admm_converged2
-    model.share_memory()
-
+    admm_converged2.share_memory()
     print("Recon Model Created")
-    print("Preprocessing")
-    pre_pbar = tqdm(total=1000)
-    all_files, all_save_folders, all_paths, model_repeated = [], [], [], []
+
+    if os.path.isfile('./finished_recon.npy'):
+        finished_folders = list(np.load('./finished_recon.npy'))
+    else:
+        finished_folders = []
+
+    all_files = []
+    all_save_folders = []
+    all_paths = []
+    all_models = []
     for path, subdirs, files in os.walk(args.root, topdown=True):
 
         curr_save_folder = os.path.join(args.save_folder, os.path.relpath(path, args.root))
+        if curr_save_folder in finished_folders:
+            continue
 
-#        if not curr_save_folder:
-#            continue
+        if not curr_save_folder:
+            continue
 
         if not os.path.isdir(curr_save_folder):
             os.makedirs(curr_save_folder, exist_ok=True)
-        
-#       print(len(files), curr_save_folder)
+
         if not files:
-            print(len(files), curr_save_folder)
             continue
-	    new_files = [f for f in files if not os.path.isfile(os.path.join(curr_save_folder, f))]
-        all_save_folders.extend([curr_save_folder]*len(new_files))
-        all_files.extend(new_files)
-        all_paths.extend([path]*len(new_files))
-        model_repeated.extend([model]*len(new_files))
-        pre_pbar.update(1)
-    pre_pbar.close()
-    print("Preprocessing Done")
-    multiproc_args = list(zip(all_files, all_save_folders, all_paths, model_repeated))
-    pbar = tqdm(total=len(all_files))
-    p = Pool(processes=args.multiprocessing_workers)
-    for res in p.imap_unordered(admm, multiproc_args):  # run_forward, gVars['file_names']):
-        pbar.update(1)
-    p.close()
-    pbar.close()
+
+        todo = [f for f in files if not os.path.isfile(os.path.join(curr_save_folder, f))]
+        if todo:
+            all_files.extend(todo)
+            all_save_folders.extend([curr_save_folder] * len(todo))
+            all_paths.extend([path] * len(todo))
+            all_models.extend([admm_converged2] * len(todo))
+
+        #        finished_folders.append(curr_save_folder)
+        # np.save('./finished_recon.npy', finished_folders)
+
+        gVars['pbar'] = tqdm(total=len(all_files))
+
+        multi_args = list(zip(all_files, all_save_folders, all_paths, all_models))
+        # print(multi_args)
+
+        p = tm.Pool(processes=args.multiprocessing_workers)
+        for res in p.imap_unordered(admm, multi_args):  # run_forward, gVars['file_names']):
+            gVars['pbar'].update(1)
+        p.close()
+
+        gVars['pbar'].close()
